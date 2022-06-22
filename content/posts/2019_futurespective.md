@@ -5,6 +5,7 @@ date: "19/01/2019"
 category: "tech"
 type: "post"
 tags: []
+author: "Lutando"
 ---
 
 Akkatecture has just completed its Snapshot story on release [0.4.0](https://github.com/Lutando/Akkatecture/releases/tag/release%252F0.4.0). With this feature, you can optimise your aggregates during the initial load to speed up aggregate responsiveness. Snapshotting is not at all a new concept but this should give you a few options on how to reduce the load time of your aggregates.

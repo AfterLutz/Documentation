@@ -1,0 +1,124 @@
+---
+title: "Your First Specifications"
+metaTitle: "Get Started with Akkatecture!"
+metaDescription: "Get Started with Akkatecture!"
+lesson: 5
+chapter: 3
+cover: "https://unsplash.it/400/300/?random?BoldMage"
+date: "01/07/2018"
+category: "akkatecture"
+type: "doc"
+tags:
+    - walkthrough
+    - akkatecture
+    - specifications
+    - csharp
+    - dotnet
+---
+Before we dive into how to construct aggregate sagas in Akkatecture. We still need to wire up some crucial bits. We have laid out some fundamental building blocks, but have not put them all together. Let us do that before proceeding to the building out aggregate sagas.
+
+### Putting It All Together
+
+We need to tell our aggregate how to handle commands.
+
+Use the `IExecute<>` interface to register your command handlers:
+
+```csharp
+public class Account : AggregateRoot<Account, AccountId, AccountState>,
+    IExecute<OpenNewAccountCommand>,
+    IExecute<TransferMoneyCommand>,
+    IExecute<ReceiveMoneyCommand>
+{
+    public Account(AccountId aggregateId)
+        : base(aggregateId)
+    {
+    }
+}
+```
+
+Now we can implement the `Execute(OpenNewAccountCommand)` method which comes from the `IExecute<OpenNewAccountCommand>` contract.
+```csharp
+public bool Execute(OpenNewAccountCommand command)
+{
+    //this spec is part of Akkatecture
+    var spec = new AggregateIsNewSpecification();
+    if(spec.IsSatisfiedBy(this))
+    {
+        var aggregateEvent = new AccountOpenedEvent(command.OpeningBalance)
+        Emit(aggregateEvent);
+    }
+
+    return true;
+}
+```
+
+> We return true from the execute method, to let akka know that we handled the command successfully.
+
+To be able to send money from one account to another the business requirements specified that; *The transaction fee for a successful money deposit is €0.25. The minimum amount of money allowed to transfer is €1.00. Which means that the minimum amount of money allowed to exit a bank account is €1.25*.
+We can model these requirements as specifications as:
+
+```csharp
+//Walkthrough.Domain/Model/Account/Specifications/MinimumTransferAmountSpecification.cs
+public class MinimumTransferAmountSpecification : Specification<AccountState>
+{
+    protected override IEnumerable<string> IsNotSatisfiedBecause(AccountState state)
+    {
+        if (state.Balance.Value < 1.00m)
+        {
+            yield return $"Account Balance={state.Balance.Value} is lower than 1.00";
+        }
+    }
+}
+
+//Walkthrough.Domain/Model/Account/Specifications/EnoughBalanceAmountSpecification.cs
+public class EnoughBalanceAmountSpecification : Specification<AccountState>
+{
+    protected override IEnumerable<string> IsNotSatisfiedBecause(AccountState state)
+    {
+        if (state.Balance.Value < 1.25m)
+        {
+            yield return $"'Balance for Account: {obj.Id} is {obj.State.Balance.Value}' is lower than 1.25";
+        }
+    }
+}
+```
+
+Now we can do our command handler for the `TransferMoneyCommand`.
+```csharp
+public bool Execute(TransferMoneyCommand command)
+{
+    var balanceSpec = new EnoughBalanceAmountSpecification();
+    var minimumTransferSpec = new MinimumTransferAmountSpecification();
+    var andSpec = balanceSpec.And(minimumTransferSpec);
+    if(andSpec.IsSatisfiedBy(this))
+    {
+        var moneySentEvent = new MoneySentEvent(command.Transaction);
+        var feesDeductedEvent = new FeesDeductedEvent(new Money(0.25m));
+
+        EmitAll(moneySentEvent, feesDeductedEvent);
+    }
+    return true;
+}
+```
+
+> We have a command that actually produced two events as the outcome of its sucessful execution. This is quite ok and can happen from time to time. One successful command does not necessarily mean that only one event can be emitted. Transfering money reduces the account balance and charges a fee. For auditing purposes, it is a good to have these as separate events. Use the `EmitAll(...)` API when it comes to emitting more than one event from the same execution context to preserve the same transactional qualities that you need when persisting events to the event journal.
+
+Finally we need to handle the receiving of money from `ReceiveMoneyCommand`.
+
+```csharp
+public bool Execute(ReceiveMoneyCommand command)
+{
+    var moneyReceivedEvent = new MoneyReceivedEvent(command.Transaction);
+
+    Emit(moneyReceivedEvent);
+    return true;
+}
+```
+
+### Summary
+
+We codified our business specifications (rules) into models that derive from `Specification<>`. This allows us to have testable specifications that live in one place. We used the specifications to guard our domains against rule breaking commands. We even used an `AndSpecification<>` to compose our specifications. You can build your own compositions as well using [these](https://github.com/AfterLutz/Akkatecture/tree/master/src/Akkatecture/Specifications/Provided). Do not over use your specifications, it is not a silver bullet, and be aware of the [criticisms](https://en.wikipedia.org/wiki/Specification_pattern#Criticisms) of specifications, finally, one should also be wary of using them outside of your domain layer. Reducing code duplication also increases code coupling.
+
+Next we shall go over how to craft your own **aggregate tests**. An important part of having maintainable code!
+
+[Next →](/docs/your-first-aggregate-test)
