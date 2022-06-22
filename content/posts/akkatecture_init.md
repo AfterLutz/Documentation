@@ -5,9 +5,10 @@ date: "15/05/2018"
 category: "tech"
 type: "post"
 tags: []
+author: "Lutando"
 ---
 
-Akkatecture began because I found that the lack of comprehensive cqrs and es examples for akka.net was a huge oppertunity to help others. I suspect that most akka users, are the ones on the JVM side of the fence, which shows by the higher amount of community members in that open source project. Ok... onwards onto what is Akkatecture philosophically, and why I decided to build it.
+Akkatecture began because I found that the lack of comprehensive cqrs and es examples for akka.net was a huge opportunity to help others. I suspect that most akka users, are the ones on the JVM side of the fence, which shows by the higher amount of community members in that open source project. Ok... onwards onto what is Akkatecture philosophically, and why I decided to build it.
 
 Akkatecture is set of constructs and patterns written in C# ontop of akka.net. The main goal of Akkatecture is to allow developers who are using akka.net to model their business domain within the akka.net framework with less friction. Akkatecture is built on reactive messaging & treats events as first class concept, making it highly scalable, thanks akka.net! Akkatecture focusses mainly on messaging integration patterns within your domain so that you dont have to.
 
@@ -24,7 +25,7 @@ Akka based systems have been used to drive hugely scalable and highly available 
 
 Please have a look at our [documentation](/docs/getting-started), go through the [basic concepts](/docs/primitives), and the [walkthrough](/docs/walkthrough-introduction) to get a good understanding of what Akkatecture looks like.
 
-Please find me on [Discord](/community), or [file GitHub a issue](https://github.com/Lutando/Akkatecture/issues) for any questions, guidance, or support-y stuff or just say hi👋.
+Please find me on [Discord](/community), or [file GitHub a issue](https://github.com/AfterLutz/Akkatecture/issues)* for any questions, guidance, or support-y stuff or just say hi👋.
 
 ### Status of Akkatecture
 Akkatecture is still currently in development, however most of the basic building blocks have been built out, but as of yet no v1 to speak of on NuGet.
@@ -38,4 +39,9 @@ The next plan is to work on the current core library and branch it out to suppor
 
 **nice-to-have features, not crucial, and might be axed for first version.*
 
-Some of the issues highlighted above can be seen [here](https://github.com/Lutando/Akkatecture/issues). However I plan to knock these off 1 by 1 and launch the first beta by June.
+Some of the issues highlighted above can be seen [here](https://github.com/AfterLutz/Akkatecture/issues)*. However I plan to knock these off 1 by 1 and launch the first beta by June.
+
+*******
+\* Please note, the links in posts written by Lutando have been edited to refer to the "AfterLutz" repositories on GitHub.
+
+-- Akkatecture Maintainers

@@ -1,127 +1,138 @@
+const componentWithMDXScope = require('gatsby-plugin-mdx/component-with-mdx-scope');
+
 const path = require('path');
-const _ = require('lodash');
-const webpackLodashPlugin = require('lodash-webpack-plugin');
 
-exports.onCreateNode = ({node, boundActionCreators, getNode}) => {
-  const {createNodeField} = boundActionCreators;
-  let slug;
-  if (node.internal.type === 'MarkdownRemark') {
-    const fileNode = getNode(node.parent);
-    const parsedFilePath = path.parse(fileNode.relativePath);
-    if (
-      Object.prototype.hasOwnProperty.call(node, 'frontmatter') &&
-      Object.prototype.hasOwnProperty.call(node.frontmatter, 'slug')
-    ) {
-      slug = `/${_.kebabCase(node.frontmatter.slug)}`;
-    }
-    if (
-      Object.prototype.hasOwnProperty.call(node, 'frontmatter') &&
-      Object.prototype.hasOwnProperty.call(node.frontmatter, 'title')
-    ) {
-      slug = `/${_.kebabCase(node.frontmatter.title)}`;
-    } else if (parsedFilePath.name !== 'index' && parsedFilePath.dir !== '') {
-      slug = `/${parsedFilePath.dir}/${parsedFilePath.name}/`;
-    } else if (parsedFilePath.dir === '') {
-      slug = `/${parsedFilePath.name}/`;
-    } else {
-      slug = `/${parsedFilePath.dir}/`;
-    }
-    createNodeField({node, name: 'slug', value: slug});
-  }
-};
+const startCase = require('lodash.startcase');
 
-exports.createPages = ({graphql, boundActionCreators}) => {
-  const {createPage} = boundActionCreators;
+const config = require('./config');
+
+exports.createPages = ({ graphql, actions }) => {
+  const { createPage } = actions;
 
   return new Promise((resolve, reject) => {
-    const blogPage = path.resolve('src/templates/blog.jsx');
-    const lessonPage = path.resolve('src/templates/lesson.jsx');
-    const tagPage = path.resolve('src/templates/tag.jsx');
-    const categoryPage = path.resolve('src/templates/category.jsx');
     resolve(
       graphql(
-        `{
-          allMarkdownRemark(filter: {frontmatter: {type: {ne: "post"}}}) {
-            edges {
-              node {
-                frontmatter {
-                  tags
-                  category
-                  type
-                }
-                fields {
-                  slug
+        `
+          {
+            allMdx(sort: { fields: frontmatter___type }) {
+              edges {
+                node {
+                  fields {
+                    id
+                    slug
+                    title
+                  }
+                  tableOfContents
+                  frontmatter {
+                    date
+                    type
+                    author
+                  }
                 }
               }
             }
           }
-        }`
-      ).then(result => {
+        `
+      ).then((result) => {
         if (result.errors) {
-          /* eslint no-console: "off" */
-          console.log(result.errors);
+          console.log(result.errors); // eslint-disable-line no-console
           reject(result.errors);
         }
 
-        const tagSet = new Set();
-        const categorySet = new Set();
-        result.data.allMarkdownRemark.edges.forEach(edge => {
-          if (edge.node.frontmatter.tags) {
-            edge.node.frontmatter.tags.forEach(tag => {
-              tagSet.add(tag);
-            });
-          }
-
-          if (edge.node.frontmatter.category) {
-            categorySet.add(edge.node.frontmatter.category);
-          }
-
-          if (edge.node.frontmatter.type === 'docs') {
-            createPage({
-              path: `/docs${edge.node.fields.slug}`,
-              component: lessonPage,
-              context: {
-                slug: edge.node.fields.slug,
-                category: edge.node.frontmatter.category
-              }
-            });
-          }
-        });
-
-        const tagList = Array.from(tagSet);
-        tagList.forEach(tag => {
+        // Create blog posts pages.
+        result.data.allMdx.edges.forEach(({ node }) => {
           createPage({
-            path: `/tags/${_.kebabCase(tag)}/`,
-            component: tagPage,
+            path: node.fields.slug ? node.fields.slug : '/',
+            component: path.resolve('./src/templates/docs.js'),
             context: {
-              tag
-            }
+              id: node.fields.id,
+            },
           });
-        });
-
-        const categoryList = Array.from(categorySet);
-        categoryList.forEach(category => {
-          createPage({
-            path: `/categories/${_.kebabCase(category)}/`,
-            component: categoryPage,
-            context: {
-              category
-            }
-          });
-        });
-      }).then(() => {
-        createPage({
-          path: `/blog`,
-          component: blogPage,
-          context: {}
         });
       })
     );
   });
 };
 
-exports.modifyWebpackConfig = ({config, stage}) => {
-  if (stage === 'build-javascript') {
-    config.plugin('Lodash', webpackLodashPlugin, null);
+exports.onCreateWebpackConfig = ({ actions }) => {
+  actions.setWebpackConfig({
+    resolve: {
+      modules: [path.resolve(__dirname, 'src'), 'node_modules'],
+      alias: {
+        $components: path.resolve(__dirname, 'src/components'),
+        buble: '@philpl/buble', // to reduce bundle size
+      },
+    },
+  });
+};
+
+exports.onCreateBabelConfig = ({ actions }) => {
+  actions.setBabelPlugin({
+    name: '@babel/plugin-proposal-export-default-from',
+  });
+};
+
+exports.onCreateNode = ({ node, getNode, actions }) => {
+  const { createNodeField } = actions;
+
+  if (node.internal.type === `Mdx`) {
+    const parent = getNode(node.parent);
+
+    let value = parent.relativePath.replace(parent.ext, '');
+
+    if (value === 'index') {
+      value = '';
+    }
+    //
+    // let arr = value.split('/');
+    //
+    // if (config.gatsby && config.gatsby.trailingSlash) {
+    //   value = arr[arr.length - 2];
+    //   createNodeField({
+    //     name: `slug`,
+    //     node,
+    //     value: value === '' ? `/` : `/${arr[0]}/${value}/`,
+    //   });
+    // } else {
+    //   value = arr[arr.length - 1];
+    //   createNodeField({
+    //     name: `slug`,
+    //     node,
+    //     value: value === '' ? `/` : `/${arr[0]}/${value}`,
+    //   });
+    // }
+
+    let arr = value.split('/');
+
+    let discardCount = config.gatsby && config.gatsby.trailingSlash ? 2 : 1;
+
+    let newValue = '';
+
+    value = arr[arr.length - discardCount];
+    if (arr.length > discardCount) newValue = `/${arr[0]}/${value}`;
+    if (arr.length == discardCount) newValue = `/${value}`;
+    if (arr.length < discardCount) newValue = '/';
+    createNodeField({
+      name: `slug`,
+      node,
+      value: newValue,
+    });
+
+    // Create 'id' component on 'edge.node'
+    createNodeField({
+      name: 'id',
+      node,
+      value: node.id,
+    });
+
+    // Create 'title' component on 'edge.node'
+    createNodeField({
+      name: 'title',
+      node,
+      value:
+        node.frontmatter.title === 'do_not_show'
+          ? ''
+          : node.frontmatter.title || startCase(parent.name),
+    });
   }
 };
